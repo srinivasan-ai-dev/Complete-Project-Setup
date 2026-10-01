@@ -1,0 +1,335 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model attendance_punches {
+  punch_id     BigInt    @id @default(autoincrement())
+  employee_id  Int
+  punch_type   String    @db.VarChar(10)
+  punch_time   DateTime  @default(now()) @db.Timestamptz(6)
+  device_or_ip String?   @db.VarChar(50)
+  latitude     Decimal?  @db.Decimal(9, 6)
+  longitude    Decimal?  @db.Decimal(9, 6)
+  employees    employees @relation(fields: [employee_id], references: [employee_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([employee_id, punch_time], map: "idx_punches_emp_time")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model attendance_records {
+  attendance_id       BigInt    @id @default(autoincrement())
+  employee_id         Int
+  shift_id            Int?
+  attendance_date     DateTime  @db.Date
+  in_time             DateTime? @db.Time(6)
+  out_time            DateTime? @db.Time(6)
+  total_working_hours Decimal?  @default(0.00) @db.Decimal(5, 2)
+  production_hours    Decimal?  @default(0.00) @db.Decimal(5, 2)
+  status              String    @db.VarChar(25)
+  is_late             Boolean?  @default(false)
+  remarks             String?   @db.VarChar(255)
+  created_at          DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime? @default(now()) @db.Timestamptz(6)
+  employees           employees @relation(fields: [employee_id], references: [employee_id], onDelete: Cascade, onUpdate: NoAction)
+  shifts              shifts?   @relation(fields: [shift_id], references: [shift_id], onUpdate: NoAction)
+
+  @@unique([employee_id, attendance_date], map: "uq_emp_attendance_date")
+  @@index([attendance_date], map: "idx_attendance_date_range")
+  @@index([employee_id, attendance_date], map: "idx_attendance_emp_date")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model claims {
+  claim_id                                Int        @id @default(autoincrement())
+  claim_code                              String     @unique @db.VarChar(30)
+  employee_id                             Int
+  category                                String     @db.VarChar(50)
+  amount                                  Decimal    @db.Decimal(10, 2)
+  bill_date                               DateTime   @db.Date
+  receipt_url                             String?
+  description                             String?
+  status                                  String?    @default("PENDING") @db.VarChar(20)
+  approved_by                             Int?
+  approved_at                             DateTime?  @db.Timestamptz(6)
+  created_at                              DateTime?  @default(now()) @db.Timestamptz(6)
+  employees_claims_approved_byToemployees employees? @relation("claims_approved_byToemployees", fields: [approved_by], references: [employee_id], onUpdate: NoAction)
+  employees_claims_employee_idToemployees employees  @relation("claims_employee_idToemployees", fields: [employee_id], references: [employee_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model company_policies {
+  policy_id      Int       @id @default(autoincrement())
+  title          String    @db.VarChar(150)
+  category       String?   @db.VarChar(50)
+  document_url   String
+  published_date DateTime? @default(dbgenerated("CURRENT_DATE")) @db.Date
+  version        String?   @default("1.0") @db.VarChar(20)
+}
+
+model departments {
+  department_id   Int            @id @default(autoincrement())
+  department_name String         @unique @db.VarChar(100)
+  department_code String?        @unique @db.VarChar(20)
+  created_at      DateTime?      @default(now()) @db.Timestamptz(6)
+  designations    designations[]
+  employees       employees[]
+}
+
+model designations {
+  designation_id    Int          @id @default(autoincrement())
+  department_id     Int?
+  designation_title String       @db.VarChar(100)
+  level             String?      @db.VarChar(50)
+  created_at        DateTime?    @default(now()) @db.Timestamptz(6)
+  departments       departments? @relation(fields: [department_id], references: [department_id], onUpdate: NoAction)
+  employees         employees[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model employee_goals {
+  goal_id             Int       @id @default(autoincrement())
+  employee_id         Int
+  title               String    @db.VarChar(200)
+  description         String?
+  target_date         DateTime? @db.Date
+  progress_percentage Int?      @default(0)
+  status              String?   @default("IN_PROGRESS") @db.VarChar(20)
+  created_at          DateTime? @default(now()) @db.Timestamptz(6)
+  employees           employees @relation(fields: [employee_id], references: [employee_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model employee_leave_balances {
+  balance_id            Int       @id @default(autoincrement())
+  employee_id           Int
+  calendar_year         Int
+  total_leaves          Int?      @default(16)
+  taken_leaves          Decimal?  @default(0.0) @db.Decimal(4, 1)
+  absent_days           Int?      @default(0)
+  pending_request_count Int?      @default(0)
+  worked_days           Int?      @default(0)
+  loss_of_pay_days      Int?      @default(0)
+  created_at            DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime? @default(now()) @db.Timestamptz(6)
+  employees             employees @relation(fields: [employee_id], references: [employee_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([employee_id, calendar_year], map: "uq_emp_leave_year")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model employee_performance_records {
+  record_id                                                      Int        @id @default(autoincrement())
+  employee_id                                                    Int
+  evaluation_year                                                Int
+  evaluation_month                                               Int
+  score_percentage                                               Decimal    @db.Decimal(5, 2)
+  points_score                                                   Int?       @default(0)
+  yoy_growth_percentage                                          Decimal?   @db.Decimal(5, 2)
+  evaluated_by                                                   Int?
+  remarks                                                        String?
+  created_at                                                     DateTime?  @default(now()) @db.Timestamptz(6)
+  employees_employee_performance_records_employee_idToemployees  employees  @relation("employee_performance_records_employee_idToemployees", fields: [employee_id], references: [employee_id], onDelete: Cascade, onUpdate: NoAction)
+  employees_employee_performance_records_evaluated_byToemployees employees? @relation("employee_performance_records_evaluated_byToemployees", fields: [evaluated_by], references: [employee_id], onUpdate: NoAction)
+
+  @@unique([employee_id, evaluation_year, evaluation_month], map: "uq_emp_perf_period")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model employee_trainings {
+  enrollment_id       Int              @id @default(autoincrement())
+  employee_id         Int
+  course_id           Int
+  progress_percentage Int?             @default(0)
+  status              String?          @default("ENROLLED") @db.VarChar(20)
+  completion_date     DateTime?        @db.Date
+  training_courses    training_courses @relation(fields: [course_id], references: [course_id], onDelete: Cascade, onUpdate: NoAction)
+  employees           employees        @relation(fields: [employee_id], references: [employee_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model employees {
+  employee_id                                                                       Int                            @id @default(autoincrement())
+  employee_code                                                                     String                         @unique @db.VarChar(30)
+  first_name                                                                        String                         @db.VarChar(50)
+  last_name                                                                         String                         @db.VarChar(50)
+  email                                                                             String                         @unique @db.VarChar(150)
+  phone_number                                                                      String?                        @db.VarChar(25)
+  avatar_url                                                                        String?
+  office_id                                                                         Int?
+  department_id                                                                     Int?
+  designation_id                                                                    Int?
+  reporting_manager_id                                                              Int?
+  date_of_joining                                                                   DateTime                       @db.Date
+  employment_status                                                                 String?                        @default("ACTIVE") @db.VarChar(20)
+  created_at                                                                        DateTime?                      @default(now()) @db.Timestamptz(6)
+  updated_at                                                                        DateTime?                      @default(now()) @db.Timestamptz(6)
+  attendance_punches                                                                attendance_punches[]
+  attendance_records                                                                attendance_records[]
+  claims_claims_approved_byToemployees                                              claims[]                       @relation("claims_approved_byToemployees")
+  claims_claims_employee_idToemployees                                              claims[]                       @relation("claims_employee_idToemployees")
+  employee_goals                                                                    employee_goals[]
+  employee_leave_balances                                                           employee_leave_balances[]
+  employee_performance_records_employee_performance_records_employee_idToemployees  employee_performance_records[] @relation("employee_performance_records_employee_idToemployees")
+  employee_performance_records_employee_performance_records_evaluated_byToemployees employee_performance_records[] @relation("employee_performance_records_evaluated_byToemployees")
+  employee_trainings                                                                employee_trainings[]
+  departments                                                                       departments?                   @relation(fields: [department_id], references: [department_id], onUpdate: NoAction)
+  designations                                                                      designations?                  @relation(fields: [designation_id], references: [designation_id], onUpdate: NoAction)
+  offices                                                                           offices?                       @relation(fields: [office_id], references: [office_id], onUpdate: NoAction)
+  employees                                                                         employees?                     @relation("employeesToemployees", fields: [reporting_manager_id], references: [employee_id], onUpdate: NoAction)
+  other_employees                                                                   employees[]                    @relation("employeesToemployees")
+  hr_requests_hr_requests_assigned_toToemployees                                    hr_requests[]                  @relation("hr_requests_assigned_toToemployees")
+  hr_requests_hr_requests_employee_idToemployees                                    hr_requests[]                  @relation("hr_requests_employee_idToemployees")
+  leave_requests_leave_requests_employee_idToemployees                              leave_requests[]               @relation("leave_requests_employee_idToemployees")
+  leave_requests_leave_requests_reviewed_byToemployees                              leave_requests[]               @relation("leave_requests_reviewed_byToemployees")
+  notifications_notifications_recipient_idToemployees                               notifications[]                @relation("notifications_recipient_idToemployees")
+  notifications_notifications_sender_idToemployees                                  notifications[]                @relation("notifications_sender_idToemployees")
+  payslips                                                                          payslips[]
+  wfh_requests_wfh_requests_employee_idToemployees                                  wfh_requests[]                 @relation("wfh_requests_employee_idToemployees")
+  wfh_requests_wfh_requests_reviewed_byToemployees                                  wfh_requests[]                 @relation("wfh_requests_reviewed_byToemployees")
+
+  @@index([department_id, designation_id], map: "idx_employees_dept_desig")
+  @@index([reporting_manager_id], map: "idx_employees_manager")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model hr_requests {
+  request_id                                   Int        @id @default(autoincrement())
+  request_code                                 String     @unique @db.VarChar(30)
+  employee_id                                  Int
+  request_type                                 String     @db.VarChar(50)
+  subject                                      String     @db.VarChar(255)
+  attachment_name                              String?    @db.VarChar(150)
+  attachment_url                               String?
+  status                                       String?    @default("PENDING") @db.VarChar(20)
+  assigned_to                                  Int?
+  reviewed_at                                  DateTime?  @db.Timestamptz(6)
+  created_at                                   DateTime?  @default(now()) @db.Timestamptz(6)
+  employees_hr_requests_assigned_toToemployees employees? @relation("hr_requests_assigned_toToemployees", fields: [assigned_to], references: [employee_id], onUpdate: NoAction)
+  employees_hr_requests_employee_idToemployees employees  @relation("hr_requests_employee_idToemployees", fields: [employee_id], references: [employee_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leave_requests {
+  leave_request_id                                Int         @id @default(autoincrement())
+  request_code                                    String      @unique @db.VarChar(30)
+  employee_id                                     Int
+  leave_type_id                                   Int
+  from_date                                       DateTime    @db.Date
+  to_date                                         DateTime    @db.Date
+  total_days                                      Decimal     @db.Decimal(4, 1)
+  reason                                          String
+  status                                          String?     @default("PENDING") @db.VarChar(20)
+  reviewed_by                                     Int?
+  reviewed_at                                     DateTime?   @db.Timestamptz(6)
+  reviewer_comments                               String?
+  created_at                                      DateTime?   @default(now()) @db.Timestamptz(6)
+  employees_leave_requests_employee_idToemployees employees   @relation("leave_requests_employee_idToemployees", fields: [employee_id], references: [employee_id], onDelete: Cascade, onUpdate: NoAction)
+  leave_types                                     leave_types @relation(fields: [leave_type_id], references: [leave_type_id], onDelete: NoAction, onUpdate: NoAction)
+  employees_leave_requests_reviewed_byToemployees employees?  @relation("leave_requests_reviewed_byToemployees", fields: [reviewed_by], references: [employee_id], onUpdate: NoAction)
+
+  @@index([employee_id, from_date, to_date], map: "idx_leave_requests_emp")
+  @@index([status], map: "idx_leave_requests_status")
+}
+
+model leave_types {
+  leave_type_id       Int              @id @default(autoincrement())
+  type_name           String           @unique @db.VarChar(50)
+  type_code           String           @unique @db.VarChar(10)
+  annual_quota        Int              @default(12)
+  is_paid             Boolean?         @default(true)
+  requires_attachment Boolean?         @default(false)
+  leave_requests      leave_requests[]
+}
+
+model notifications {
+  notification_id                                 BigInt     @id @default(autoincrement())
+  recipient_id                                    Int
+  sender_id                                       Int?
+  title                                           String     @db.VarChar(150)
+  message                                         String
+  notification_type                               String?    @default("INFO") @db.VarChar(50)
+  related_entity_type                             String?    @db.VarChar(50)
+  related_entity_id                               BigInt?
+  is_read                                         Boolean?   @default(false)
+  created_at                                      DateTime?  @default(now()) @db.Timestamptz(6)
+  employees_notifications_recipient_idToemployees employees  @relation("notifications_recipient_idToemployees", fields: [recipient_id], references: [employee_id], onDelete: Cascade, onUpdate: NoAction)
+  employees_notifications_sender_idToemployees    employees? @relation("notifications_sender_idToemployees", fields: [sender_id], references: [employee_id], onUpdate: NoAction)
+
+  @@index([recipient_id, is_read], map: "idx_notifications_recipient")
+}
+
+model offices {
+  office_id   Int         @id @default(autoincrement())
+  office_name String      @db.VarChar(100)
+  city        String      @db.VarChar(100)
+  state       String?     @db.VarChar(100)
+  country     String?     @default("India") @db.VarChar(100)
+  address     String?
+  created_at  DateTime?   @default(now()) @db.Timestamptz(6)
+  employees   employees[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model payslips {
+  payslip_id       Int       @id @default(autoincrement())
+  employee_id      Int
+  pay_month        Int
+  pay_year         Int
+  basic_salary     Decimal   @db.Decimal(12, 2)
+  hra              Decimal?  @default(0.00) @db.Decimal(12, 2)
+  allowances       Decimal?  @default(0.00) @db.Decimal(12, 2)
+  deductions       Decimal?  @default(0.00) @db.Decimal(12, 2)
+  net_salary       Decimal   @db.Decimal(12, 2)
+  pdf_download_url String?
+  payment_status   String?   @default("PAID") @db.VarChar(20)
+  payment_date     DateTime? @db.Date
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+  employees        employees @relation(fields: [employee_id], references: [employee_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([employee_id, pay_month, pay_year], map: "uq_emp_payslip_month")
+}
+
+model shifts {
+  shift_id           Int                  @id @default(autoincrement())
+  shift_name         String               @db.VarChar(50)
+  start_time         DateTime             @db.Time(6)
+  end_time           DateTime             @db.Time(6)
+  grace_period_mins  Int?                 @default(15)
+  half_day_hours     Decimal?             @default(4.0) @db.Decimal(4, 2)
+  full_day_hours     Decimal?             @default(8.0) @db.Decimal(4, 2)
+  is_active          Boolean?             @default(true)
+  attendance_records attendance_records[]
+}
+
+model training_courses {
+  course_id          Int                  @id @default(autoincrement())
+  course_title       String               @db.VarChar(200)
+  category           String?              @db.VarChar(50)
+  duration_hours     Decimal?             @db.Decimal(5, 2)
+  created_at         DateTime?            @default(now()) @db.Timestamptz(6)
+  employee_trainings employee_trainings[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model wfh_requests {
+  wfh_id                                        Int        @id @default(autoincrement())
+  request_code                                  String     @unique @db.VarChar(30)
+  employee_id                                   Int
+  request_date                                  DateTime   @db.Date
+  reason                                        String
+  work_handover_details                         String
+  status                                        String?    @default("PENDING") @db.VarChar(20)
+  reviewed_by                                   Int?
+  reviewed_at                                   DateTime?  @db.Timestamptz(6)
+  reviewer_comments                             String?
+  created_at                                    DateTime?  @default(now()) @db.Timestamptz(6)
+  employees_wfh_requests_employee_idToemployees employees  @relation("wfh_requests_employee_idToemployees", fields: [employee_id], references: [employee_id], onDelete: Cascade, onUpdate: NoAction)
+  employees_wfh_requests_reviewed_byToemployees employees? @relation("wfh_requests_reviewed_byToemployees", fields: [reviewed_by], references: [employee_id], onUpdate: NoAction)
+
+  @@index([employee_id, request_date], map: "idx_wfh_requests_emp")
+}
