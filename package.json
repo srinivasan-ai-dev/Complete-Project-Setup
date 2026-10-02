@@ -20,6 +20,6 @@
   },
   "devDependencies": {
     "dotenv": "^18.0.5",
-    "prisma": "^8.0.0-rc.19"
+    "prisma": "^6.19.3"
   }
 }
