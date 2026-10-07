@@ -31,21 +31,20 @@ exports.getTrainings = async (req, res, next) => {
             })
         ]);
 
-        // Map data to match the UI columns
         const formattedTrainings = courses.map(course => {
-            const startDate = course.created_at || new Date();
-            const endDate = new Date(startDate);
-            endDate.setDate(endDate.getDate() + 30); // Estimated end date based on standard 30-day course
+            const startDate = course.start_date || course.created_at || new Date();
+            const endDate = course.end_date || new Date(startDate);
+            if (!course.end_date) endDate.setDate(endDate.getDate() + 30); // Fallback for old records
 
             return {
                 training_id: `TRN-${course.course_id.toString().padStart(3, '0')}`,
                 name: course.course_title,
                 category: course.category || 'General',
-                trainer: "Internal HR", // Simulated since it doesn't exist in schema
-                mode: "Online", // Simulated since it doesn't exist in schema
+                trainer: course.trainer || "Unassigned",
+                mode: course.mode || "Online",
                 start_end_date: `${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`,
                 participants: course._count.employee_trainings,
-                status: "Active" // Simulated since it doesn't exist in schema
+                status: course.status || "Active"
             };
         });
 
@@ -117,9 +116,9 @@ exports.getTrainingAttendance = async (req, res, next) => {
                 employee: emp ? `${emp.first_name} ${emp.last_name}` : 'Unknown',
                 training: course ? course.course_title : 'Unknown',
                 date: enrollment.completion_date || new Date(), // Using completion date or current date
-                attendance: "Present", // Simulated as there is no attendance field
+                attendance: enrollment.attendance || "Absent",
                 completion: `${enrollment.progress_percentage || 0}%`,
-                remarks: enrollment.status === "COMPLETED" ? "Completed successfully" : "In Progress", // Simulated
+                remarks: enrollment.remarks || (enrollment.status === "COMPLETED" ? "Completed successfully" : "In Progress"),
                 status: enrollment.status
             };
         });
@@ -152,13 +151,13 @@ exports.createTrainingAttendance = async (req, res, next) => {
         }
 
         // Map the Figma fields to the existing database schema
-        // Note: The schema doesn't have 'attendance' or 'remarks' directly, 
-        // so we save 'date' to 'completion_date' and derive status
         const enrollment = await prisma.employee_trainings.create({
             data: {
                 employee_id: Number(employee_id),
                 course_id: Number(course_id),
                 completion_date: date ? new Date(date) : new Date(),
+                attendance: attendance,
+                remarks: remarks,
                 // If attendance is marked as present/completed, we can update status
                 status: attendance === 'Present' || attendance === 'Completed' ? 'COMPLETED' : 'ENROLLED',
                 progress_percentage: attendance === 'Present' || attendance === 'Completed' ? 100 : 0
@@ -213,11 +212,11 @@ exports.getTrainingCalendar = async (req, res, next) => {
             return {
                 training_id: course.course_id,
                 training: course.course_title,
-                trainer: "Internal HR", // Simulated since it doesn't exist in schema
-                date: startDate.toISOString().split('T')[0],
-                location: "Conference Room A", // Simulated
+                trainer: course.trainer || "Unassigned",
+                date: (course.start_date || startDate).toISOString().split('T')[0],
+                location: course.location || "TBD",
                 participants: course._count.employee_trainings,
-                status: "Scheduled" // Simulated
+                status: course.status || "Scheduled"
             };
         });
 

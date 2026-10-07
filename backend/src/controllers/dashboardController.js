@@ -35,7 +35,7 @@ exports.getDashboardData = async (req, res, next) => {
         // Fetch from employee_leave_balances
         const leaveBalance = await prisma.employee_leave_balances.findUnique({
             where: {
-                uq_emp_leave_year: {
+                employee_id_calendar_year: {
                     employee_id: employeeId,
                     calendar_year: currentYear
                 }
@@ -95,13 +95,52 @@ exports.getDashboardData = async (req, res, next) => {
         const absentCount = yearlyAttendance.filter(a => a.status === 'ABSENT').length;
         const sickCount = yearlyAttendance.filter(a => a.status === 'SICK').length;
 
+        // Calculate actual percentile based on on-time attendance across org
+        const allEmployeesYearlyAttendance = await prisma.attendance_records.findMany({
+            where: {
+                attendance_date: {
+                    gte: startOfYear,
+                    lte: endOfYear
+                }
+            },
+            select: {
+                employee_id: true,
+                is_late: true,
+                status: true
+            }
+        });
+
+        const employeeOnTimeCounts = {};
+        allEmployeesYearlyAttendance.forEach(a => {
+            if (!employeeOnTimeCounts[a.employee_id]) employeeOnTimeCounts[a.employee_id] = 0;
+            if (!a.is_late && a.status === 'PRESENT') {
+                employeeOnTimeCounts[a.employee_id]++;
+            }
+        });
+        
+        const totalEmployees = Object.keys(employeeOnTimeCounts).length;
+        let computedPercentile = 100;
+        
+        if (totalEmployees > 1) {
+            const myOnTimeCount = employeeOnTimeCounts[employeeId] || 0;
+            let strictlyWorse = 0;
+            for (const empId in employeeOnTimeCounts) {
+                if (Number(empId) !== employeeId && employeeOnTimeCounts[empId] < myOnTimeCount) {
+                    strictlyWorse++;
+                }
+            }
+            computedPercentile = Math.round((strictlyWorse / (totalEmployees - 1)) * 100);
+        } else if (totalEmployees === 0) {
+            computedPercentile = 0;
+        }
+
         const attendanceSummary = {
             on_time: onTimeCount,
             late: lateCount,
             wfh: wfhRequests,
             absent: absentCount,
             sick_leave: sickCount,
-            percentile: "Better than 85% Employees" // Complex percentile calculation requires full org scan, using static text for UI display format
+            percentile: `Better than ${computedPercentile}% Employees`
         };
 
         const dailyStatus = {

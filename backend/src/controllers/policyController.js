@@ -34,8 +34,8 @@ exports.getPolicies = async (req, res, next) => {
                 category: policy.category || 'General',
                 version: policy.version,
                 effective_from: policy.published_date,
-                applicable_to: "All Employees", // Simulated since it doesn't exist in schema
-                status: "Active", // Simulated since it doesn't exist in schema
+                applicable_to: policy.applicable_to || "All Employees",
+                status: policy.status || "Active",
                 document_url: policy.document_url
             };
         });

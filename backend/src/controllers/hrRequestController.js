@@ -60,7 +60,9 @@ exports.getHrRequests = async (req, res, next) => {
                 department: emp && emp.departments ? emp.departments.department_name : 'Unknown',
                 request_type: request.request_type,
                 date: request.created_at,
-                priority: "Normal", // Simulated as priority doesn't exist in schema
+                priority: request.priority || "Normal",
+                expected_date: request.expected_date,
+                description: request.description,
                 assigned_to: assigned ? `${assigned.first_name} ${assigned.last_name}` : 'Unassigned',
                 status: request.status
             };
@@ -95,21 +97,15 @@ exports.raiseHrRequest = async (req, res, next) => {
         const count = await prisma.hr_requests.count();
         const request_code = `HR-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
 
-        // Combine the Figma-specific fields into the subject or a formatted string since the DB lacks these columns
-        let finalSubject = subject;
-        if (description || priority || expected_date) {
-            finalSubject = `${subject} | Desc: ${description || 'N/A'} | Priority: ${priority || 'N/A'} | Expected: ${expected_date || 'N/A'}`;
-        }
-        
-        // Truncate to fit the 255 char limit in DB
-        finalSubject = finalSubject.substring(0, 255);
-
         const request = await prisma.hr_requests.create({
             data: {
                 request_code,
                 employee_id: Number(employee_id),
                 request_type,
-                subject: finalSubject,
+                subject,
+                description: description || null,
+                priority: priority || null,
+                expected_date: expected_date ? new Date(expected_date) : null,
                 status: "PENDING"
             }
         });

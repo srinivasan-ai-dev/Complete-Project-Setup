@@ -34,16 +34,33 @@ exports.getPayslips = async (req, res, next) => {
             })
         ]);
 
-        // Calculate Gross Salary to match the UI requirements
+        // Calculate Gross and Total Deductions dynamically from native DB fields
         const formattedPayslips = payslips.map(payslip => {
             const basic = Number(payslip.basic_salary) || 0;
             const hra = Number(payslip.hra) || 0;
             const allowances = Number(payslip.allowances) || 0;
+            const pf = Number(payslip.pf) || 0;
+            const esi = Number(payslip.esi) || 0;
+            const tds = Number(payslip.tds) || 0;
+            const pt = Number(payslip.professional_tax) || 0;
+            const otherDeductions = Number(payslip.other_deductions) || 0;
+            const generalDeductions = Number(payslip.deductions) || 0;
             
             return {
                 ...payslip,
                 gross_salary: basic + hra + allowances,
-                // frontend can map month int (1-12) to string (January - December)
+                total_deductions: pf + esi + tds + pt + otherDeductions + generalDeductions,
+                // Flatten Prisma.Decimal objects to JS Numbers for clean JSON serialization
+                basic_salary: basic,
+                hra: hra,
+                allowances: allowances,
+                pf: pf,
+                esi: esi,
+                tds: tds,
+                professional_tax: pt,
+                other_deductions: otherDeductions,
+                deductions: generalDeductions,
+                net_salary: Number(payslip.net_salary) || 0
             };
         });
 

@@ -69,18 +69,16 @@ exports.applyForWfh = async (req, res, next) => {
         const count = await prisma.wfh_requests.count();
         const request_code = `WFH-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
 
-        // Map Figma fields to the existing schema
-        // The schema lacks from_date/to_date and work_location, so we map from_date to request_date
-        // and combine location/remarks into work_handover_details
-        const combinedHandoverDetails = `Location: ${work_location || 'N/A'}. Remarks: ${remarks || 'None'}. To Date: ${to_date || 'N/A'}`;
-
         const request = await prisma.wfh_requests.create({
             data: {
                 request_code,
                 employee_id: Number(employee_id),
                 request_date: new Date(from_date),
+                to_date: to_date ? new Date(to_date) : null,
+                work_location: work_location || null,
+                remarks: remarks || null,
                 reason,
-                work_handover_details: combinedHandoverDetails,
+                work_handover_details: null,
                 status: "PENDING"
             }
         });

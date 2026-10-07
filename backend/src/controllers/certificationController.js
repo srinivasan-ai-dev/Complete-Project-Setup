@@ -49,7 +49,8 @@ exports.getCertifications = async (req, res, next) => {
                 issue_date: cert.issue_date,
                 expiry_date: cert.expiry_date,
                 status: status,
-                credential_url: cert.credential_url
+                credential_url: cert.credential_url,
+                renewal_required: cert.renewal_required
             };
         });
 
@@ -94,8 +95,8 @@ exports.createCertification = async (req, res, next) => {
                 issuing_authority: issuing_authority || null,
                 issue_date: issue_date ? new Date(issue_date) : null,
                 expiry_date: expiry_date ? new Date(expiry_date) : null,
-                credential_url: credential_url || null
-                // renewal_required is handled by UI logic or could be a mocked field in future
+                credential_url: credential_url || null,
+                renewal_required: renewal_required || false
             }
         });
 

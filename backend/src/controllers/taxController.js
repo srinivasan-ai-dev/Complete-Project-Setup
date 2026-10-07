@@ -40,23 +40,16 @@ exports.getTaxDetails = async (req, res, next) => {
         const taxDetails = payslips.map(payslip => {
             const totalDeductions = Number(payslip.deductions) || 0;
             
-            // Estimated breakdown for UI (Pending schema update for exact granular breakdown columns)
-            const pf = totalDeductions * 0.4;
-            const esi = totalDeductions * 0.1;
-            const tds = totalDeductions * 0.3;
-            const professional_tax = totalDeductions * 0.1;
-            const other_deductions = totalDeductions * 0.1;
-
             return {
                 payslip_id: payslip.payslip_id,
                 pay_month: payslip.pay_month,
                 pay_year: payslip.pay_year,
                 total_deductions: totalDeductions,
-                pf: pf.toFixed(2),
-                esi: esi.toFixed(2),
-                tds: tds.toFixed(2),
-                professional_tax: professional_tax.toFixed(2),
-                other_deductions: other_deductions.toFixed(2)
+                pf: Number(payslip.pf || 0).toFixed(2),
+                esi: Number(payslip.esi || 0).toFixed(2),
+                tds: Number(payslip.tds || 0).toFixed(2),
+                professional_tax: Number(payslip.professional_tax || 0).toFixed(2),
+                other_deductions: Number(payslip.other_deductions || 0).toFixed(2)
             };
         });
 

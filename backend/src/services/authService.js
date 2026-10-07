@@ -51,13 +51,7 @@ class AuthService {
 
         const { generateToken } = require("../utils/jwtHelper");
         
-        // Mock role logic based on designation or department
-        let role = "Employee";
-        if (employee.designations && employee.designations.designation_name.includes("Manager")) {
-            role = "Manager";
-        } else if (employee.departments && employee.departments.department_name === "HR") {
-            role = "HR";
-        }
+        const role = employee.role || "Employee";
 
         const token = generateToken({
             employee_id: employee.employee_id,
