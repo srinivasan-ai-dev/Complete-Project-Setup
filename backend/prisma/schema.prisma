@@ -332,3 +332,13 @@ model wfh_requests {
 
   @@index([employee_id, request_date], map: "idx_wfh_requests_emp")
 }
+
+model competencies {
+  competency_id        Int                    @id @default(autoincrement())
+  skill                String                 @db.VarChar(255)
+  competency           String                 @db.VarChar(255)
+  category             String                 @db.VarChar(100)
+  proficiency_level    String                 @db.VarChar(50)
+  applicable_role      String                 @db.VarChar(255)
+  active_status        String                 @default("Active") @db.VarChar(20)
+}
